@@ -7,6 +7,25 @@ import { TRootStackParamList } from './App';
 export interface IUser {
 	username: string;
 	password: string;
+	/*
+	* Security Fix (Insecure Data Storage)
+	* - Notes.tsx used to build its AsyncStorage encryption/key material
+	*   directly from `password` (the auth hash), reusing the same secret
+	*   for two different purposes.
+	* - notesKey is a separate value, derived via PBKDF2 from the plaintext
+	*   password at login time (see deriveNotesKey below) using a different
+	*   salt/context than the auth hash, so compromising one does not
+	*   automatically compromise the other.
+	*/
+	notesKey: string;
+}
+
+// Shape of the local "database" entries: only what's needed to authenticate.
+// notesKey is deliberately absent here — it only ever exists transiently,
+// derived from the plaintext password at the moment of a successful login.
+interface IStoredUser {
+	username: string;
+	password: string;
 }
 
 interface IProps {
@@ -26,7 +45,26 @@ function hashPassword(plainText: string): string {
 	return CryptoJS.SHA256(SALT + plainText).toString(CryptoJS.enc.Hex);
 }
 
-const users: IUser[] = [
+/*
+* Security Fix (Insecure Data Storage)
+* - Derives a key for encrypting a user's notes (see Notes.tsx) from their
+*   plaintext password via PBKDF2, using a distinct context string and a
+*   high iteration count.
+* - This is intentionally NOT the same value as the auth hash above: reusing
+*   one secret for both authentication and encryption means a leak of either
+*   purpose compromises the other. PBKDF2's iteration count also makes this
+*   far more brute-force-resistant than a single SHA-256 pass.
+*/
+const NOTES_KEY_CONTEXT = 'AwesomeProject-notes-encryption-v1';
+
+function deriveNotesKey(plainTextPassword: string, username: string): string {
+	return CryptoJS.PBKDF2(plainTextPassword, NOTES_KEY_CONTEXT + username, {
+		keySize: 256 / 32,
+		iterations: 10000,
+	}).toString(CryptoJS.enc.Hex);
+}
+
+const users: IStoredUser[] = [
 	{ username: 'joe', password: hashPassword('secret') },
 	{ username: 'bob', password: hashPassword('password') },
 ];
@@ -67,7 +105,7 @@ export default function Login(props: TProps) {
 		*/
 		const enteredHash = hashPassword(password);
 
-		let foundUser: IUser | false = false;
+		let foundUser: IStoredUser | false = false;
 
 		for (const user of users) {
 			if (cleanUsername === user.username && enteredHash === user.password) {
@@ -77,7 +115,14 @@ export default function Login(props: TProps) {
 		}
 
 		if (foundUser) {
-			props.onLogin(foundUser);
+			/*
+			* Security Fix (Insecure Data Storage)
+			* - notesKey must be derived here, while the plaintext `password`
+			*   is still in memory, since it is cleared immediately below and
+			*   never stored or passed onward in plaintext form.
+			*/
+			const notesKey = deriveNotesKey(password, foundUser.username);
+			props.onLogin({ username: foundUser.username, password: foundUser.password, notesKey });
 		} else {
 			Alert.alert('Error', 'Username or password is invalid.');
 		}
