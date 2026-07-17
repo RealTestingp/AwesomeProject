@@ -57,10 +57,6 @@ export default class Notes extends React.Component<TProps, IState> {
 		this.setState({ notes: existing });
 	}
 
-	public async componentWillUnmount() {
-		this.storeNotes(this.state.notes);
-	}
-
 	/*
 	* Security Fix (Insecure Data Storage)
 	* - Notes were previously stored as plaintext JSON in AsyncStorage, and
@@ -108,7 +104,21 @@ export default class Notes extends React.Component<TProps, IState> {
 		this.setState({ newNoteEquation: value });
 	}
 
-	private addNote() {
+	/*
+	* Bug Fix (Insecure Data Storage — verified during manual testing)
+	* - Notes were only ever written to AsyncStorage from
+	*   componentWillUnmount(), which fires when React unmounts this
+	*   screen, not when the OS backgrounds/kills the app. Since there is
+	*   no in-app action that unmounts Notes (no logout, single-screen
+	*   stack), notes never actually reached storage under real usage —
+	*   confirmed by force-stopping the app after adding a note and
+	*   inspecting the on-device AsyncStorage database directly, which
+	*   showed no rows written.
+	* - addNote() now persists immediately after updating state, so every
+	*   note is written to encrypted storage as soon as it's added,
+	*   independent of the screen's mount lifecycle.
+	*/
+	private async addNote() {
 		const title = this.state.newNoteTitle.trim();
 		const text = this.state.newNoteEquation.trim();
 
@@ -133,12 +143,15 @@ export default class Notes extends React.Component<TProps, IState> {
 		}
 
 		const note: INote = { title, text };
+		const notes = this.state.notes.concat(note);
 
 		this.setState({
-			notes: this.state.notes.concat(note),
+			notes,
 			newNoteTitle: '',
 			newNoteEquation: ''
 		});
+
+		await this.storeNotes(notes);
 	}
 
 	public render() {
