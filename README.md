@@ -1,97 +1,49 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Totally Secure Math App - Security Assessment Report
 
-# Getting Started
+Authors: Aurora Choban, Jenna Hackett, Dylan Khuu, Stephen Noh, Verity Boyd
+Date: 19 July, 2026
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## I. Introduction
 
-## Step 1: Start Metro
+This report will provide a comprehensive security assessment on the Totally Secure Math App, including detailing the vulnerabilities found within the code of the application. Analysis on these vulnerabilities will be performed, implementations will be put in place within the code to fix them, and a final reflection will be given on the lessons learned during this assessment.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## II. Vulnerabilities Identified
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### A. Insecure Data Storage:
 
-```sh
-# Using npm
-npm start
+User's passwords are hardcoded and stored as easily-breachable strings with no hashing or salting. Moreover, the passwords are stored within a suffix variable using unencrypted AsyncStorage within Notes.tsx; attackers are easily able to get access to these passwords.
 
-# OR using Yarn
-yarn start
-```
+### B. Improper Authentication:
 
-## Step 2: Build and run your app
+Within Login.tsx, there is a severe lack of proper authentication. No tokens or other secure authentication methods are used - instead, the function just checks if the username and password are found in the array of users defined earlier. Because the login logic is entirely client-side with no backend authentication, an attacker would easily be able to bypass this and force the function to return true to gain access to the application.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+What's more, is that the entire application has no access control, be it role-based or otherwise. Once a user is logged in, no further authorization checks are performed throughout the application, meaning if an attacker gained access to the application, they essentially have admin rights to perform further malicious attacks.
 
-### Android
+### C. Insufficient Input Validation & Code Injection:
 
-```sh
-# Using npm
-npm run android
+These vulnerabilities are present throughout the application, and have been combined into one section of the report as they go hand in hand with another - if there is no input validation, code injection can easily be performed.
 
-# OR using Yarn
-yarn android
-```
+The TextInput field for password in the login form itself does not perform any sanitization or checking of what has been entered. This means an attacker could enter whatever code they want into the app to execute. If the app was attached to an SQL database, SQL could be entered to brute force a login. Moreover, an attacker could input an extremely long input to crash the app for a denial of service or buffer overflow attack.
 
-### iOS
+More glaringly, the Note component of the app uses the eval() function on the note's contents. This function will execute anything entered within the note field. Again, this means attackers could enter JavaScript to display or execute anything they wanted to. The AddNote function only checks if the fields are empty, and does not perform any further sanitization or validation checks. This should be performed to at least check for the length of the input as well as any special characters to avoid an injection or XSS (cross-side scripting) attack. Seeing as the note is designed to contain a math equation, it would be a good idea to enforce some kind of whitelisting also so that the input is checked to be only numeric in nature.
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+### D. Insecure Coding Practices:
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+All of the features identified above come together to showcase the entire application as an example of insecure coding practices. Most notably, hardcoding passwords as plaintext strings, and not preventing any type of injection by way of a lack of input sanitization are to blame.
+In addition, we noticed that the password field of the login form does not use secureTextEntry. This means that anyone looking at the user's screen can see the password entered as plain text. An attacker in the real world would easily be able to steal the user's credentials because of this.
 
-```sh
-bundle install
-```
+## II. Why Security Implementations Matter (the ones we put in)
 
-Then, and every time you update your native dependencies, run:
+All the implementations were incredibly important to put into this project to ensure the safety and security of both the application and its users. Write more later. Reference:
+a. Modify the app to store sensitive data (e.g., API keys, access tokens) using appropriate encryption techniques and secure storage methods.
+b. Implement secure authentication practices to address any improper authentication vulnerabilities.
+c. Implement proper input validation and sanitization techniques to mitigate any insufficient input validation and code injection vulnerabilities.
+d. Identify and rectify insecure code practices within the app, such as the use of hardcoded credentials, improper error handling or lack of access control.
 
-```sh
-bundle exec pod install
-```
+## IV. Reflection
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+It is important to approach coding with a security-first mindset. Even when gathering requirements and designing architecture in the planning and analysis stages of a software project, it is key to consider security. The sooner you code with security in mind, the easier it will be to create a fully secure and protected application. Certain measures should become second nature, such as always sanitizing or specifying the input of text fields to avoid injection attacks. Furthermore, one should always consider the end-user and their security when writing code; whether its thinking about entering an unmasked password in a crowded environment, or considering how their life could be changed for the worse if you did not ensure their password was stored securely and out of reach of potential attackers. This consideration for the user that you are trying to protect will remind the programmer how instrumental security-first coding practices are.
 
-```sh
-# Using npm
-npm run ios
+## V. References
 
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+(None used.)
