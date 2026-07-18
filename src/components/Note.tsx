@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Button, Alert } from 'react-native';
+import { evaluateMathExpression } from '../utils/safeMathEval';
 
 interface IProps {
 	title: string;
@@ -7,10 +8,25 @@ interface IProps {
 }
 
 function Note(props: IProps) {
+	/*
+	* Security Fix (Code Injection)
+	* - eval(props.text) executed whatever string was in the note as live
+	*   JavaScript, not just arithmetic. Since notes are user-supplied, this
+	*   was a textbook code-injection vector: someone could put something
+	*   like AsyncStorage.getAllKeys() access, fetch(...), or an infinite
+	*   loop into a note "equation" and it would run.
+	* - Replaced with evaluateMathExpression(), a whitelist-validated
+	*   arithmetic-only parser with no path back into eval/Function, so a
+	*   malicious note can never execute as code. Invalid input throws and
+	*   is surfaced to the user instead of executing or crashing the app.
+	*/
 	function evaluateEquation() {
-		const result = eval(props.text);
-
-		Alert.alert('Result', 'Result: ' + result);
+		try {
+			const result = evaluateMathExpression(props.text);
+			Alert.alert('Result', 'Result: ' + result);
+		} catch (error) {
+			Alert.alert('Error', 'This note does not contain a valid equation.');
+		}
 	}
 
 	return (
